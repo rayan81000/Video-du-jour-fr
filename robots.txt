@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://videos-du-jour-fr.netlify.app/sitemap.xml
