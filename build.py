@@ -79,6 +79,16 @@ button{font:inherit;cursor:pointer}
 .tab,.sbtn{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:6px 14px;border-radius:999px;font-size:14px}
 .tab[aria-pressed="true"],.sbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.favpanel{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.favpanel summary{cursor:pointer;font-weight:600}
+.favbody{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.favbody form{display:flex;gap:8px;flex-wrap:wrap}
+.favbody input{flex:1 1 200px;min-width:0;font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.favlist{display:flex;flex-wrap:wrap;gap:6px}
+.favtag{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;font-size:14px}
+.favtag button{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1;padding:2px 6px}
+.hint{margin:0;color:var(--muted);font-size:13px}
+.star{border:0;background:transparent;font-size:22px;line-height:1;padding:4px 6px;color:var(--star)}
 .count{font-family:var(--font-data);font-size:13px;color:var(--muted);margin-bottom:6px}
 ol{list-style:none;margin:0;padding:0}
 li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
@@ -111,6 +121,12 @@ footer a{color:var(--accent)}
 <button class="sbtn" data-s="age" aria-pressed="false">Plus récentes</button>
 </div>
 </div>
+<details class="favpanel" id="favpanel"><summary>Mes YouTubeurs favoris</summary><div class="favbody">
+<form id="favform"><input id="favin" type="text" placeholder="Nom d'une chaîne (ex. Squeezie)" autocomplete="off" aria-label="Nom d'une chaîne"><button type="submit" class="sbtn">Ajouter</button></form>
+<div class="favlist" id="favlist"></div>
+<p class="hint">Touchez l'étoile à côté d'une vidéo pour ajouter ou retirer sa chaîne. Votre liste est enregistrée sur cet appareil.</p>
+<div><button type="button" class="sbtn" id="favreset">Remettre la liste de départ</button></div>
+</div></details>
 <div class="count" id="count">__COUNT__</div>
 <ol id="list">__LIST__</ol>
 <footer>
@@ -119,8 +135,14 @@ footer a{color:var(--accent)}
 </footer>
 </main>
 <script id="data" type="application/json">__DATA__</script>
+<script id="favs" type="application/json">__FAVS__</script>
 <script>
 var D=JSON.parse(document.getElementById('data').textContent);
+var DEF=JSON.parse(document.getElementById('favs').textContent);
+var FAVS=DEF.slice();
+try{var sv=localStorage.getItem('favs');if(sv)FAVS=JSON.parse(sv)}catch(e){}
+function saveFavs(){try{localStorage.setItem('favs',JSON.stringify(FAVS))}catch(e){}}
+function isFav(r){var n=r.channel.toLowerCase();return FAVS.some(function(f){return n.indexOf(f)>-1})}
 var cat="Tout",sort="big";
 function fv(n){return n>=1e6?(n/1e6).toFixed(1).replace('.',',')+' M':n>=1e3?(n/1e3).toFixed(1).replace('.',',')+' k':String(n)}
 function age(h){return h>=24?'il y a 1 jour':'il y a '+h+' h'}
@@ -128,12 +150,13 @@ function esc(s){var d=document.createElement('div');d.textContent=s;return d.inn
 function render(){
 var rows=D.filter(function(r){return cat==="Tout"||r.category===cat});
 rows.sort(function(a,b){
-if(sort==="big"){if(a.fav!==b.fav)return a.fav?-1:1;if(a.big!==b.big)return a.big?-1:1;}
+if(sort==="big"){var fa=isFav(a),fb=isFav(b);if(fa!==fb)return fa?-1:1;if(a.big!==b.big)return a.big?-1:1;}
 if(sort==="age")return (a.hours-b.hours)||(b.views-a.views);
 return b.views-a.views});
 document.getElementById('count').textContent=rows.length+' vidéo'+(rows.length>1?'s':'');
 document.getElementById('list').innerHTML=rows.map(function(r,i){
-return '<li><span class="rank">'+(i+1)+'</span><div class="t"><a class="yt" data-id="'+r.id+'" href="https://www.youtube.com/watch?v='+r.id+'" target="_blank" rel="noopener">'+esc(r.title)+'</a><div class="meta"><span>'+esc(r.channel)+'</span><span class="chip '+r.category+'">'+r.category+'</span>'+(r.fav?'<span class="chip fav">Favori</span>':(r.big?'<span class="chip big">Grande chaîne</span>':''))+'</div></div><div class="v">'+fv(r.views)+' vues<small>'+age(r.hours)+'</small></div></li>';
+var f=isFav(r);
+return '<li><span class="rank">'+(i+1)+'</span><div class="t"><a class="yt" data-id="'+r.id+'" href="https://www.youtube.com/watch?v='+r.id+'" target="_blank" rel="noopener">'+esc(r.title)+'</a><div class="meta"><span>'+esc(r.channel)+'</span><span class="chip '+r.category+'">'+r.category+'</span>'+(f?'<span class="chip fav">Favori</span>':(r.big?'<span class="chip big">Grande chaîne</span>':''))+'</div></div><div class="v"><button class="star" data-i="'+D.indexOf(r)+'" aria-pressed="'+f+'" aria-label="'+(f?'Retirer des favoris':'Ajouter aux favoris')+'">'+(f?'★':'☆')+'</button> '+fv(r.views)+' vues<small>'+age(r.hours)+'</small></div></li>';
 }).join('');
 }
 var tabs=document.getElementById('tabs');
@@ -145,6 +168,24 @@ tabs.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-pressed',
 document.getElementById('sort').addEventListener('click',function(e){var b=e.target.closest('.sbtn');if(!b)return;sort=b.dataset.s;
 this.querySelectorAll('.sbtn').forEach(function(x){x.setAttribute('aria-pressed',x===b)});render()});
 
+function renderFavs(){
+document.getElementById('favlist').innerHTML=FAVS.length?FAVS.map(function(f,i){return '<span class="favtag">'+esc(f)+'<button type="button" data-f="'+i+'" aria-label="Retirer '+esc(f)+'">×</button></span>'}).join(''):'<span class="hint">Aucun favori pour le moment.</span>';
+}
+function refresh(){saveFavs();render();renderFavs()}
+document.getElementById('list').addEventListener('click',function(e){
+var b=e.target.closest('.star');if(!b)return;
+var r=D[+b.dataset.i],n=r.channel.toLowerCase();
+if(isFav(r)){FAVS=FAVS.filter(function(f){return n.indexOf(f)===-1})}else{FAVS.push(n)}
+refresh()});
+document.getElementById('favlist').addEventListener('click',function(e){
+var b=e.target.closest('button[data-f]');if(!b)return;
+FAVS.splice(+b.dataset.f,1);refresh()});
+document.getElementById('favform').addEventListener('submit',function(e){
+e.preventDefault();var inp=document.getElementById('favin'),v=inp.value.trim().toLowerCase();
+if(v&&FAVS.indexOf(v)===-1)FAVS.push(v);inp.value='';refresh()});
+document.getElementById('favreset').addEventListener('click',function(){
+FAVS=DEF.slice();try{localStorage.removeItem('favs')}catch(e){}render();renderFavs()});
+render();renderFavs();
 document.addEventListener('click',function(e){
 var a=e.target.closest('a.yt');if(!a)return;
 var id=a.dataset.id,ua=navigator.userAgent;
@@ -200,7 +241,7 @@ def main():
     safe = lambda obj: json.dumps(obj, ensure_ascii=False).replace("</", "<\\/")
     page = (TEMPLATE.replace("__URL__", SITE_URL).replace("__DATE__", date_txt)
             .replace("__COUNT__", f"{len(vids)} vidéos").replace("__LIST__", "".join(items))
-            .replace("__JSONLD__", safe(jsonld)).replace("__DATA__", safe(vids)))
+            .replace("__FAVS__", safe(FAVS)).replace("__JSONLD__", safe(jsonld)).replace("__DATA__", safe(vids)))
     with open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as f:
