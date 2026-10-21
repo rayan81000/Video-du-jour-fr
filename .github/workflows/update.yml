@@ -16,7 +16,7 @@ jobs:
       - name: Récupérer les vidéos du jour
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          SITE_URL: https://videos-du-jour-fr.netlify.app/
+          SITE_URL: https://rayan81000.github.io/Video-du-jour-fr/
         run: python update.py
       - name: Enregistrer
         run: |
