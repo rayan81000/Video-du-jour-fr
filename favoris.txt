@@ -1,0 +1,21 @@
+# Mes YouTubeurs préférés : un nom de chaîne par ligne (majuscules et accents sans importance).
+# Leurs vidéos du jour passent en premier, avec l'étiquette "Favori".
+# Pour ajouter quelqu'un : touchez le crayon sur GitHub, ajoutez une ligne, puis "Commit changes".
+squeezie
+michou
+wankil
+kevko
+gotaga
+mastu
+fiouze
+talcado
+casquey
+skyrroz
+galax
+unchained
+inoxtag
+amixem
+mcfly
+carlito
+cyprien
+norman

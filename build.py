@@ -6,10 +6,16 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SITE_URL = os.environ.get("SITE_URL", "https://rayan81000.github.io/Video-du-jour-fr/")
 
 # Grands YouTubeurs français : on repère le nom de la chaîne (sans majuscules ni accents).
-BIG_NAMES = ["squeezie", "michou", "wankil", "kevko", "gotaga", "mastu", "fiouze", "talcado",
-             "casquey", "skyrroz", "galax", "unchained", "inoxtag", "amixem", "mcfly", "carlito",
-             "cyprien", "norman", "locklear", "domingo", "joyca", "doigby", "maghla", "mister v",
-             "lebouseuh", "mawkzy", "teeqzy", "zetfar", "anthony", "ponce", "etoiles", "nico"]
+def load_favs():
+    path = os.path.join(ROOT, "favoris.txt")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return [l.strip().lower() for l in f if l.strip() and not l.startswith("#")]
+    except FileNotFoundError:
+        return []
+
+
+FAVS = load_favs()
 BIG_SUBS = 1_000_000
 
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
@@ -17,9 +23,13 @@ MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août
         "septembre", "octobre", "novembre", "décembre"]
 
 
-def is_big(v):
+def is_fav(v):
     name = v["channel"].lower()
-    return v.get("subs", 0) >= BIG_SUBS or any(n in name for n in BIG_NAMES)
+    return any(n in name for n in FAVS)
+
+
+def is_big(v):
+    return v.get("subs", 0) >= BIG_SUBS
 
 
 def fv(n):
@@ -78,7 +88,7 @@ li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 14px;align
 .t a:hover{color:var(--accent);text-decoration:underline}
 .meta{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:13.5px;color:var(--muted);margin-top:2px}
 .chip{font-family:var(--font-data);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;padding:1px 7px;border-radius:4px}
-.chip.Musique{color:var(--music)}.chip.Jeux{color:var(--game)}.chip.Cinéma{color:var(--cine)}.chip.Divers{color:var(--muted)}.chip.big{color:var(--star)}
+.chip.Musique{color:var(--music)}.chip.Jeux{color:var(--game)}.chip.Cinéma{color:var(--cine)}.chip.Divers{color:var(--muted)}.chip.big{color:var(--muted)}.chip.fav{color:var(--star)}
 .v{font-family:var(--font-data);font-size:14px;text-align:right;white-space:nowrap}
 .v small{display:block;color:var(--muted);font-size:12px}
 footer{margin-top:28px;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px}
@@ -96,7 +106,7 @@ footer a{color:var(--accent)}
 <div class="bar">
 <div class="tabs" id="tabs" role="group" aria-label="Catégorie"></div>
 <div class="sort" id="sort" role="group" aria-label="Tri">
-<button class="sbtn" data-s="big" aria-pressed="true">Grands YouTubeurs</button>
+<button class="sbtn" data-s="big" aria-pressed="true">Favoris et grandes chaînes</button>
 <button class="sbtn" data-s="views" aria-pressed="false">Plus vues</button>
 <button class="sbtn" data-s="age" aria-pressed="false">Plus récentes</button>
 </div>
@@ -118,12 +128,12 @@ function esc(s){var d=document.createElement('div');d.textContent=s;return d.inn
 function render(){
 var rows=D.filter(function(r){return cat==="Tout"||r.category===cat});
 rows.sort(function(a,b){
-if(sort==="big"&&a.big!==b.big)return a.big?-1:1;
+if(sort==="big"){if(a.fav!==b.fav)return a.fav?-1:1;if(a.big!==b.big)return a.big?-1:1;}
 if(sort==="age")return (a.hours-b.hours)||(b.views-a.views);
 return b.views-a.views});
 document.getElementById('count').textContent=rows.length+' vidéo'+(rows.length>1?'s':'');
 document.getElementById('list').innerHTML=rows.map(function(r,i){
-return '<li><span class="rank">'+(i+1)+'</span><div class="t"><a href="https://www.youtube.com/watch?v='+r.id+'" target="_blank" rel="noopener">'+esc(r.title)+'</a><div class="meta"><span>'+esc(r.channel)+'</span><span class="chip '+r.category+'">'+r.category+'</span>'+(r.big?'<span class="chip big">Grande chaîne</span>':'')+'</div></div><div class="v">'+fv(r.views)+' vues<small>'+age(r.hours)+'</small></div></li>';
+return '<li><span class="rank">'+(i+1)+'</span><div class="t"><a class="yt" data-id="'+r.id+'" href="https://www.youtube.com/watch?v='+r.id+'" target="_blank" rel="noopener">'+esc(r.title)+'</a><div class="meta"><span>'+esc(r.channel)+'</span><span class="chip '+r.category+'">'+r.category+'</span>'+(r.fav?'<span class="chip fav">Favori</span>':(r.big?'<span class="chip big">Grande chaîne</span>':''))+'</div></div><div class="v">'+fv(r.views)+' vues<small>'+age(r.hours)+'</small></div></li>';
 }).join('');
 }
 var tabs=document.getElementById('tabs');
@@ -134,6 +144,21 @@ tabs.addEventListener('click',function(e){var b=e.target.closest('.tab');if(!b)r
 tabs.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-pressed',x===b)});render()});
 document.getElementById('sort').addEventListener('click',function(e){var b=e.target.closest('.sbtn');if(!b)return;sort=b.dataset.s;
 this.querySelectorAll('.sbtn').forEach(function(x){x.setAttribute('aria-pressed',x===b)});render()});
+
+document.addEventListener('click',function(e){
+var a=e.target.closest('a.yt');if(!a)return;
+var id=a.dataset.id,ua=navigator.userAgent;
+var ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+var and=/Android/.test(ua);
+if(!ios&&!and)return;
+e.preventDefault();
+var web='https://www.youtube.com/watch?v='+id;
+if(and){location.href='intent://www.youtube.com/watch?v='+id+'#Intent;scheme=https;package=com.google.android.youtube;S.browser_fallback_url='+encodeURIComponent(web)+';end';return;}
+var t=setTimeout(function(){location.href=web},1500);
+document.addEventListener('visibilitychange',function(){if(document.hidden)clearTimeout(t)},{once:true});
+window.addEventListener('pagehide',function(){clearTimeout(t)},{once:true});
+location.href='youtube://www.youtube.com/watch?v='+id;
+});
 </script>
 </body>
 </html>
@@ -146,15 +171,17 @@ def main():
     gen = datetime.fromisoformat(data["generated"])
     vids = data["videos"]
     for v in vids:
+        v["fav"] = is_fav(v)
         v["big"] = is_big(v)
-    vids.sort(key=lambda v: (not v["big"], -v["views"]))
+    vids.sort(key=lambda v: (not v["fav"], not v["big"], -v["views"]))
 
     items = []
     for i, v in enumerate(vids, 1):
-        badge = '<span class="chip big">Grande chaîne</span>' if v["big"] else ""
+        badge = ('<span class="chip fav">Favori</span>' if v["fav"]
+                 else '<span class="chip big">Grande chaîne</span>' if v["big"] else "")
         items.append(
             f'<li><span class="rank">{i}</span><div class="t">'
-            f'<a href="https://www.youtube.com/watch?v={html.escape(v["id"])}" target="_blank" rel="noopener">{html.escape(v["title"])}</a>'
+            f'<a class="yt" data-id="{html.escape(v["id"])}" href="https://www.youtube.com/watch?v={html.escape(v["id"])}" target="_blank" rel="noopener">{html.escape(v["title"])}</a>'
             f'<div class="meta"><span>{html.escape(v["channel"])}</span>'
             f'<span class="chip {v["category"]}">{v["category"]}</span>{badge}</div></div>'
             f'<div class="v">{fv(v["views"])} vues<small>{age(v["hours"])}</small></div></li>'
@@ -181,7 +208,7 @@ def main():
                 f'<url><loc>{SITE_URL}</loc><lastmod>{gen.date().isoformat()}</lastmod><changefreq>daily</changefreq></url>\n</urlset>\n')
     with open(os.path.join(ROOT, "robots.txt"), "w", encoding="utf-8") as f:
         f.write(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n")
-    print(f"index.html généré ({len(vids)} vidéos, {sum(v['big'] for v in vids)} grandes chaînes).")
+    print(f"index.html généré ({len(vids)} vidéos, {sum(v['fav'] for v in vids)} favoris, {sum(v['big'] for v in vids)} grandes chaînes).")
 
 
 if __name__ == "__main__":
