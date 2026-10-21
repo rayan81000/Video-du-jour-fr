@@ -41,6 +41,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .favlist{display:flex;flex-wrap:wrap;gap:6px}
 .favtag{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;font-size:14px}
 .favtag button{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1;padding:2px 6px}
+.auth{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.who{display:inline-flex;align-items:center;gap:8px;font-size:14px}
+.who img{width:28px;height:28px;border-radius:50%}
 .hint{margin:0;color:var(--muted);font-size:13px}
 .star{border:0;background:transparent;font-size:22px;line-height:1;padding:4px 6px;color:var(--star)}
 .count{font-family:var(--font-data);font-size:13px;color:var(--muted);margin-bottom:6px}
@@ -66,6 +69,7 @@ footer a{color:var(--accent)}
 <span class="date">Mardi 20 octobre 2026</span>
 <h1>Vidéo du jour</h1>
 <p class="lead">Les nouvelles vidéos françaises des dernières 24 heures sur YouTube. Les grands YouTubeurs sont affichés en premier.</p>
+<div class="auth" id="auth"><button type="button" class="sbtn" id="login" hidden>Se connecter avec Google</button><span class="who" id="who" hidden></span><button type="button" class="sbtn" id="logout" hidden>Se déconnecter</button><span class="hint" id="authmsg" role="status"></span></div>
 </header>
 <div class="bar">
 <div class="tabs" id="tabs" role="group" aria-label="Catégorie"></div>
@@ -95,7 +99,7 @@ var D=JSON.parse(document.getElementById('data').textContent);
 var DEF=JSON.parse(document.getElementById('favs').textContent);
 var FAVS=DEF.slice();
 try{var sv=localStorage.getItem('favs');if(sv)FAVS=JSON.parse(sv)}catch(e){}
-function saveFavs(){try{localStorage.setItem('favs',JSON.stringify(FAVS))}catch(e){}}
+function saveFavs(){try{localStorage.setItem('favs',JSON.stringify(FAVS))}catch(e){}if(window.cloudSave)window.cloudSave(FAVS)}
 function isFav(r){var n=r.channel.toLowerCase();return FAVS.some(function(f){return n.indexOf(f)>-1})}
 var cat="Tout",sort="big";
 function fv(n){return n>=1e6?(n/1e6).toFixed(1).replace('.',',')+' M':n>=1e3?(n/1e3).toFixed(1).replace('.',',')+' k':String(n)}
@@ -154,6 +158,45 @@ document.addEventListener('visibilitychange',function(){if(document.hidden)clear
 window.addEventListener('pagehide',function(){clearTimeout(t)},{once:true});
 location.href='youtube://www.youtube.com/watch?v='+id;
 });
+</script>
+<script type="module">
+(async function(){
+var $=function(i){return document.getElementById(i)};
+var msg=function(t){$('authmsg').textContent=t||''};
+try{
+var cfg=(await import('./firebase-config.js')).firebaseConfig;
+if(!cfg||!cfg.apiKey)return;
+var B='https://www.gstatic.com/firebasejs/10.14.1/';
+var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
+var A=mods[0],Au=mods[1],Fs=mods[2];
+var app=A.initializeApp(cfg),auth=Au.getAuth(app),db=Fs.getFirestore(app);
+$('login').hidden=false;
+$('login').addEventListener('click',async function(){
+msg('');
+try{await Au.signInWithPopup(auth,new Au.GoogleAuthProvider())}
+catch(e){
+if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')){Au.signInWithRedirect(auth,new Au.GoogleAuthProvider());return}
+if(e&&e.code==='auth/popup-closed-by-user')return;
+msg('Connexion impossible : '+((e&&e.code)||'erreur inconnue'))}
+});
+$('logout').addEventListener('click',function(){Au.signOut(auth)});
+Au.onAuthStateChanged(auth,async function(u){
+if(!u){window.cloudSave=null;$('login').hidden=false;$('logout').hidden=true;$('who').hidden=true;return}
+$('login').hidden=true;$('logout').hidden=false;$('who').hidden=false;
+$('who').textContent='';
+if(u.photoURL){var im=document.createElement('img');im.src=u.photoURL;im.alt='';im.referrerPolicy='no-referrer';$('who').appendChild(im)}
+$('who').appendChild(document.createTextNode(u.displayName||u.email||'Connecté'));
+var ref=Fs.doc(db,'users',u.uid);
+try{
+var snap=await Fs.getDoc(ref);
+if(snap.exists()&&Array.isArray(snap.data().favs)){window.FAVS=snap.data().favs;try{localStorage.setItem('favs',JSON.stringify(window.FAVS))}catch(e){}render();renderFavs()}
+else{await Fs.setDoc(ref,{favs:window.FAVS})}
+window.cloudSave=function(f){Fs.setDoc(ref,{favs:f}).catch(function(){msg('Enregistrement impossible pour le moment.')})};
+msg('Vos favoris sont enregistrés sur votre compte.')
+}catch(e){msg('Favoris du compte indisponibles : '+((e&&e.code)||'erreur'))}
+});
+}catch(e){/* Firebase indisponible : le site fonctionne sans connexion */}
+})();
 </script>
 </body>
 </html>
