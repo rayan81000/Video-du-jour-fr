@@ -3,7 +3,7 @@ import html, json, os
 from datetime import datetime
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-SITE_URL = os.environ.get("SITE_URL", "https://videos-du-jour-fr.netlify.app/")
+SITE_URL = os.environ.get("SITE_URL", "https://rayan81000.github.io/Video-du-jour-fr/")
 
 # Grands YouTubeurs français : on repère le nom de la chaîne (sans majuscules ni accents).
 BIG_NAMES = ["squeezie", "michou", "wankil", "kevko", "gotaga", "mastu", "fiouze", "talcado",

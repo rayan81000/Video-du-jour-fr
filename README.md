@@ -1,3 +1,3 @@
 LIen du site web pour regarder les dernière vidéo sortie 
 
-https://videos-du-jour-fr.netlify.app/
+https://rayan81000.github.io/Video-du-jour-fr/
